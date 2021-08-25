@@ -2,7 +2,8 @@ import { useContext, useState, useEffect } from "react";
 import { useHistory } from "react-router";
 import FirebaseContext from "../context/firebase";
 import { Link } from "react-router-dom";
-import * as ROUTES from '../constants/routes'
+import * as ROUTES from '../constants/routes';
+import { doesUsernameExists } from "../services/firebase";
 
 export default function Signup () {
     const history = useHistory();
@@ -18,10 +19,34 @@ export default function Signup () {
 
     const handleSignUp = async(e) => {
         e.preventDefault();
-        try {
-          
-        } catch (error) {
-           
+        const usernameExists = await doesUsernameExists(username);
+        console.log(usernameExists);
+        if(usernameExists) {
+            setError('That username is already taken, please try another.')
+        } else {
+            try {
+                const createdUserResult = await firebaseApp.auth().createUserWithEmailAndPassword(emailAddress, password)
+
+                await createdUserResult.user.updateProfile({
+                    displayName: username
+                })
+
+                await firebaseApp.firestore().collection('users').add({
+                    userId: createdUserResult.user.uid,
+                    username: username.toLowerCase(),
+                    fullname,
+                    emailAddress: emailAddress.toLowerCase(),
+                    following: [],
+                    dateCreated: Date.now()
+                });
+
+                history.push(ROUTES.DASHBOARD)
+            } catch (error) {
+               setFullname('');
+               setEmailAddress('');
+               setPassword('');
+               setError(error.message);
+            }
         }
     };
 
@@ -51,14 +76,14 @@ export default function Signup () {
                          <input 
                             aria-label="Enter your full name"
                             type="text"
-                            placeholder="Email address"
+                            placeholder="Full name"
                             className="text-sm text-gray-base w-full mr-3 py-5 px-4 h-2 border border-gray-primary rounded mb-2" onChange={(e) => setFullname(e.target.value)} 
                             value={fullname}
                         />
                         <input 
                             aria-label="Enter your email address"
                             type="text"
-                            placeholder="Full name"
+                            placeholder="Email address"
                             className="text-sm text-gray-base w-full mr-3 py-5 px-4 h-2 border border-gray-primary rounded mb-2" onChange={(e) => setEmailAddress(e.target.value)} 
                             value={emailAddress}
                         />
